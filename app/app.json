@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "XenChat",
+    "slug": "xenchat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "android": {
+      "package": "com.xenchat.app",
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "CAMERA"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.xenchat.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "XenChat uses Face ID to reveal encrypted messages."
+      }
+    },
+    "plugins": [
+      "expo-local-authentication",
+      "expo-font"
+    ]
+  }
+}
