@@ -1,12 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  TextInput, Animated, StatusBar
+  TextInput, Animated, StatusBar, RefreshControl, Alert, ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/color';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../services/api';
+import { connectSocket } from '../services/socketService';
+import useAuthStore from '../store/useAuthStore';
 
 const GlitchText = ({ text, style }) => {
   const glitch1 = useRef(new Animated.Value(0)).current;
@@ -50,9 +53,9 @@ const GlitchText = ({ text, style }) => {
   );
 };
 
-const ChatItem = ({ item, index, navigation }) => {
+const ChatItem = ({ item, index, navigation, currentUserId }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -81,6 +84,33 @@ const ChatItem = ({ item, index, navigation }) => {
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isMyLastMsg = item.last_message_sender_id === currentUserId;
+
+  const renderLastMsgTick = () => {
+    if (!isMyLastMsg || !item.last_message) return null;
+
+    if (item.last_message_status === 'read') {
+      return (
+        <Ionicons
+          name="checkmark-done"
+          size={14}
+          color="#00FFB2"
+          style={{
+            marginRight: 4,
+            shadowColor: '#00FFB2',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.9,
+            shadowRadius: 5,
+          }}
+        />
+      );
+    }
+    if (item.last_message_status === 'delivered') {
+      return <Ionicons name="checkmark-done" size={14} color="#CCCCCC" style={{ marginRight: 4 }} />;
+    }
+    return <Ionicons name="checkmark" size={13} color="#888888" style={{ marginRight: 4 }} />;
+  };
+
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
       <TouchableOpacity
@@ -88,7 +118,8 @@ const ChatItem = ({ item, index, navigation }) => {
         activeOpacity={0.7}
       onPress={() => navigation.navigate('ChatRoom', {
         chatId: item.id,
-        playerName: 'PLAYER_' + item.id.slice(0, 4).toUpperCase(),
+        otherUserId: item.other_user_id,
+        playerName: item.other_username || 'PLAYER_' + item.id.slice(0, 4).toUpperCase(),
         realName: item.other_username,
       })}
       >
@@ -98,7 +129,9 @@ const ChatItem = ({ item, index, navigation }) => {
             style={styles.avatarBorder}
           >
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>#{getInitials(item.id)}</Text>
+              <Text style={styles.avatarText}>
+                {(item.other_username || item.id).slice(0, 2).toUpperCase()}
+              </Text>
             </View>
           </LinearGradient>
           <Animated.View style={[styles.onlineDot, { transform: [{ scale: pulseAnim }] }]} />
@@ -106,19 +139,21 @@ const ChatItem = ({ item, index, navigation }) => {
 
         <View style={styles.chatInfo}>
           <View style={styles.chatRow}>
-            <Text style={styles.chatName}>PLAYER_{getInitials(item.id)}</Text>
+            <Text style={styles.chatName}>{item.other_username || 'PLAYER_' + item.id.slice(0,4).toUpperCase()}</Text>
             <Text style={styles.chatTime}>{formatTime(item.last_message_at)}</Text>
           </View>
           <View style={styles.chatRow}>
             <View style={styles.msgRow}>
-              <Ionicons name="lock-closed" size={10} color={colors.neonGreen} />
+              {renderLastMsgTick()}
               <Text style={styles.lastMsg} numberOfLines={1}>
-                {' '}{item.last_message || '[ENCRYPTED CHANNEL READY]'}
+                {item.last_message || 'No messages yet'}
               </Text>
             </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
+            {Number(item.unread_count) > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{item.unread_count}</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -130,18 +165,16 @@ const ChatItem = ({ item, index, navigation }) => {
 export default function ChatsScreen({ navigation }) {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
   const searchAnim = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
+  const { user, token } = useAuthStore();
 
-  useEffect(() => {
-    fetchChats();
-    Animated.timing(headerAnim, {
-      toValue: 1, duration: 600, useNativeDriver: true,
-    }).start();
-  }, []);
+  const fetchChatsRef = useRef(null);
+  const handleIncomingMessageRef = useRef(null);
 
   const fetchChats = async () => {
     try {
@@ -151,13 +184,136 @@ export default function ChatsScreen({ navigation }) {
       console.log('error:', err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  fetchChatsRef.current = fetchChats;
+
+  handleIncomingMessageRef.current = (newMsg) => {
+    console.log('⚡ ChatsScreen message:new event:', newMsg);
+    setChats((prevChats) => {
+      const chatIndex = prevChats.findIndex((c) => c.id === newMsg.chat_id);
+      if (chatIndex === -1) {
+        fetchChatsRef.current?.();
+        return prevChats;
+      }
+
+      const targetChat = { ...prevChats[chatIndex] };
+      targetChat.last_message = newMsg.ciphertext;
+      targetChat.last_message_at = newMsg.sent_at;
+      targetChat.last_message_sender_id = newMsg.sender_id;
+      targetChat.last_message_status = newMsg.status || 'sent';
+
+      const currentUserId = useAuthStore.getState().user?.id;
+      if (newMsg.sender_id !== currentUserId) {
+        targetChat.unread_count = (Number(targetChat.unread_count) || 0) + 1;
+      }
+
+      const otherChats = prevChats.filter((c) => c.id !== newMsg.chat_id);
+      return [targetChat, ...otherChats];
+    });
+
+    // Also sync with server
+    fetchChatsRef.current?.();
+  };
+
+  useEffect(() => {
+    fetchChats();
+    const socket = token ? connectSocket(token) : null;
+
+    Animated.timing(headerAnim, {
+      toValue: 1, duration: 600, useNativeDriver: true,
+    }).start();
+
+    const onNewMsg = (msg) => handleIncomingMessageRef.current?.(msg);
+    const onStatusMsg = () => fetchChatsRef.current?.();
+    const onReadMsg = () => fetchChatsRef.current?.();
+
+    if (socket) {
+      socket.on('message:new', onNewMsg);
+      socket.on('message:status', onStatusMsg);
+      socket.on('messages:read', onReadMsg);
+    }
+
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      fetchChatsRef.current?.();
+    });
+
+    return () => {
+      unsubscribeFocus();
+      if (socket) {
+        socket.off('message:new', onNewMsg);
+        socket.off('message:status', onStatusMsg);
+        socket.off('messages:read', onReadMsg);
+      }
+    };
+  }, [navigation, token]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchChats();
+  };
+
+  const [globalResults, setGlobalResults] = useState([]);
+  const [searchingGlobal, setSearchingGlobal] = useState(false);
+  const searchDebounceRef = useRef(null);
+
+  const handleSearchChange = (text) => {
+    setSearch(text);
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    if (text.trim().length >= 1) {
+      setSearchingGlobal(true);
+      searchDebounceRef.current = setTimeout(async () => {
+        try {
+          const res = await api.get(`/users/search?q=${encodeURIComponent(text.trim())}`);
+          if (res.data.success) {
+            setGlobalResults(res.data.users || []);
+          }
+        } catch (err) {
+          setGlobalResults([]);
+        } finally {
+          setSearchingGlobal(false);
+        }
+      }, 300);
+    } else {
+      setGlobalResults([]);
+      setSearchingGlobal(false);
+    }
+  };
+
+  const handleStartChat = async (targetUser) => {
+    try {
+      const res = await api.post('/chats', { recipient_id: targetUser.id });
+      if (res.data.success) {
+        const chat = res.data.chat;
+        fetchChats();
+        setSearch('');
+        setShowSearch(false);
+        setGlobalResults([]);
+        navigation.navigate('ChatRoom', {
+          chatId: chat.id,
+          otherUserId: targetUser.id,
+          playerName: targetUser.username,
+          realName: targetUser.username,
+        });
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Could not start chat');
     }
   };
 
   const toggleSearch = () => {
-    setShowSearch(!showSearch);
+    const nextState = !showSearch;
+    setShowSearch(nextState);
+    if (!nextState) {
+      setSearch('');
+      setGlobalResults([]);
+    }
     Animated.spring(searchAnim, {
-      toValue: showSearch ? 0 : 1,
+      toValue: nextState ? 1 : 0,
       friction: 8, useNativeDriver: false,
     }).start();
   };
@@ -166,13 +322,19 @@ export default function ChatsScreen({ navigation }) {
     inputRange: [0, 1], outputRange: [0, 56],
   });
 
-  const filtered = chats.filter(c =>
-    c.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredLocalChats = chats.filter(c => {
+    const matchesSearch = search.length === 0 ||
+      (c.other_username || '').toLowerCase().includes(search.toLowerCase());
+    const matchesFilter =
+      activeFilter === 'All' ? true :
+      activeFilter === 'Groups' ? c.is_group === true :
+      true;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D0D0D" />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A1A" translucent={false} />
 
       <LinearGradient
         colors={[colors.neonGreen, colors.neonPurple, 'transparent']}
@@ -213,14 +375,14 @@ export default function ChatsScreen({ navigation }) {
           <Text style={styles.searchPrompt}>{'> '}</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="SEARCH_PLAYER..."
+            placeholder="Search username or phone..."
             placeholderTextColor={colors.textMuted}
             value={search}
-            onChangeText={setSearch}
+            onChangeText={handleSearchChange}
             autoFocus={showSearch}
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
+            <TouchableOpacity onPress={() => handleSearchChange('')}>
               <Ionicons name="close-circle" size={14} color={colors.neonGreen} />
             </TouchableOpacity>
           )}
@@ -245,10 +407,6 @@ export default function ChatsScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
         ))}
-        <View style={styles.onlineCount}>
-          <View style={styles.dot} />
-          <Text style={styles.onlineText}>1 ONLINE</Text>
-        </View>
       </View>
 
       <LinearGradient
@@ -257,32 +415,118 @@ export default function ChatsScreen({ navigation }) {
         style={styles.divider}
       />
 
-      {filtered.length === 0 ? (
+      {/* Global Search Results List */}
+      {search.trim().length > 0 ? (
+        <View style={{ flex: 1, paddingHorizontal: 16 }}>
+          <Text style={{ color: '#00FFB2', fontFamily: 'Rajdhani_600SemiBold', fontSize: 13, marginVertical: 10, letterSpacing: 1 }}>
+            SEARCH RESULTS FOR "{search}"
+          </Text>
+
+          {searchingGlobal ? (
+            <ActivityIndicator size="small" color="#00FFB2" style={{ marginTop: 20 }} />
+          ) : globalResults.length === 0 && filteredLocalChats.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <Ionicons name="person-remove-outline" size={48} color="#444466" />
+              <Text style={{ color: '#888899', fontFamily: 'Rajdhani_600SemiBold', fontSize: 16, marginTop: 10 }}>
+                No user found matching "{search}"
+              </Text>
+              <Text style={{ color: '#555577', fontSize: 12, marginTop: 4 }}>
+                Check spelling or try a phone number
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={globalResults}
+              keyExtractor={(u) => u.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item: u }) => (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1A1A3E',
+                  }}
+                  onPress={() => handleStartChat(u)}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{
+                      width: 44, height: 44, borderRadius: 22, backgroundColor: '#1A1A3E',
+                      justify: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#00FFB240',
+                    }}>
+                      <Text style={{ color: '#00FFB2', fontFamily: 'Orbitron_700Bold', fontSize: 16 }}>
+                        {u.username.slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={{ color: '#FFF', fontFamily: 'Rajdhani_600SemiBold', fontSize: 16 }}>
+                        {u.username}
+                      </Text>
+                      {u.phone ? (
+                        <Text style={{ color: '#888899', fontSize: 12 }}>+{u.phone}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={{
+                      paddingHorizontal: 16, paddingVertical: 8,
+                      borderRadius: 20, backgroundColor: '#00FFB220',
+                      borderWidth: 1, borderColor: '#00FFB2',
+                    }}
+                    onPress={() => handleStartChat(u)}
+                  >
+                    <Text style={{ color: '#00FFB2', fontFamily: 'Orbitron_700Bold', fontSize: 12 }}>
+                      CHAT
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      ) : chats.length === 0 ? (
+        /* Empty State */
         <View style={styles.emptyContainer}>
-          <Ionicons name="wifi-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>NO ACTIVE CHANNELS</Text>
-          <Text style={styles.emptySub}>Initiate encrypted connection</Text>
-          <TouchableOpacity style={styles.newChatBtn}>
+          <Ionicons name="chatbubbles-outline" size={64} color={colors.neonGreen} />
+          <Text style={styles.emptyText}>NO CHATS YET</Text>
+          <Text style={styles.emptySub}>Search username or phone number to start chatting</Text>
+          <TouchableOpacity
+            style={styles.newChatBtn}
+            onPress={toggleSearch}
+          >
             <LinearGradient
               colors={[colors.neonGreen + '30', colors.neonPurple + '20']}
               style={StyleSheet.absoluteFill}
             />
-            <Text style={styles.newChatText}>+ OPEN CHANNEL</Text>
+            <Text style={styles.newChatText}>+ START A CHAT</Text>
           </TouchableOpacity>
         </View>
       ) : (
+        /* Existing Chats List */
         <FlatList
-          data={filtered}
+          data={filteredLocalChats}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.neonGreen}
+              colors={[colors.neonGreen]}
+            />
+          }
           renderItem={({ item, index }) => (
-            <ChatItem item={item} index={index} navigation={navigation} />
+            <ChatItem item={item} index={index} navigation={navigation} currentUserId={user?.id} />
           )}
         />
       )}
 
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        activeOpacity={0.8}
+        onPress={toggleSearch}
+      >
         <LinearGradient
           colors={[colors.neonGreen, colors.neonPurple]}
           style={styles.fabGradient}
@@ -290,7 +534,7 @@ export default function ChatsScreen({ navigation }) {
           <Ionicons name="create-outline" size={22} color="#000" />
         </LinearGradient>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

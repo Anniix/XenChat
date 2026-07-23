@@ -1,8 +1,8 @@
+require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./app');
 require('./config/db');
-require('dotenv').config();
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -10,8 +10,11 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST']
-  }
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
 });
 
 // Socket handlers

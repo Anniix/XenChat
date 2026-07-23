@@ -1,0 +1,176 @@
+
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font-mono); }
+  .root { padding: 1rem 0; }
+  .tree { font-size: 13px; line-height: 1.8; color: var(--color-text-primary); }
+  .folder { color: var(--color-text-info); font-weight: 500; }
+  .file { color: var(--color-text-primary); }
+  .file.key { color: var(--color-text-success); font-weight: 500; }
+  .file.config { color: var(--color-text-warning); }
+  .file.env { color: var(--color-text-danger); }
+  .indent1 { padding-left: 20px; }
+  .indent2 { padding-left: 40px; }
+  .indent3 { padding-left: 60px; }
+  .indent4 { padding-left: 80px; }
+  .comment { color: var(--color-text-tertiary); font-size: 11px; padding-left: 8px; }
+  .section-label {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .phase1 { background: var(--color-background-success); color: var(--color-text-success); }
+  .later { background: var(--color-background-tertiary); color: var(--color-text-tertiary); }
+  .divider {
+    border: none;
+    border-top: 1px solid var(--color-border-tertiary);
+    margin: 12px 0;
+  }
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 12px; font-size: 12px;
+  }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .d-folder { background: var(--color-text-info); }
+  .d-key { background: var(--color-text-success); }
+  .d-config { background: var(--color-text-warning); }
+  .d-env { background: var(--color-text-danger); }
+</style>
+<div class="root">
+  <div class="legend">
+    <span><span class="dot d-folder"></span>Folder</span>
+    <span><span class="dot d-key"></span>Key file</span>
+    <span><span class="dot d-config"></span>Config</span>
+    <span><span class="dot d-env"></span>Env/Secret</span>
+  </div>
+  <hr class="divider">
+  <div class="tree">
+
+    <div><span class="folder">📁 xenchat/</span> <span class="comment">— monorepo root</span></div>
+
+    <div class="indent1"><span class="folder">📁 app/</span> <span class="comment">— React Native (Expo) frontend</span></div>
+    <div class="indent2"><span class="folder">📁 src/</span></div>
+
+    <div class="indent3"><span class="folder">📁 screens/</span> <span class="comment">— one file per screen</span></div>
+    <div class="indent4"><span class="file key">SplashScreen.jsx</span> <span class="comment">— glitch logo animation</span></div>
+    <div class="indent4"><span class="file key">OnboardingScreen.jsx</span> <span class="comment">— phone OTP / Google OAuth</span></div>
+    <div class="indent4"><span class="file key">UsernameScreen.jsx</span> <span class="comment">— @handle + avatar setup</span></div>
+    <div class="indent4"><span class="file key">ChatsScreen.jsx</span> <span class="comment">— chat list tab (tab 1)</span></div>
+    <div class="indent4"><span class="file key">GroupsScreen.jsx</span> <span class="comment">— groups tab (tab 2)</span></div>
+    <div class="indent4"><span class="file key">GamesScreen.jsx</span> <span class="comment">— games hub (tab 3, center)</span></div>
+    <div class="indent4"><span class="file key">ProfileScreen.jsx</span> <span class="comment">— user profile (tab 4)</span></div>
+    <div class="indent4"><span class="file key">SettingsScreen.jsx</span> <span class="comment">— settings/privacy (tab 5)</span></div>
+    <div class="indent4"><span class="file key">ChatRoomScreen.jsx</span> <span class="comment">— individual chat thread</span></div>
+    <div class="indent4"><span class="file">RevealModal.jsx</span> <span class="comment">— triple-tap biometric/4-char modal</span></div>
+
+    <div class="indent3"><span class="folder">📁 components/</span></div>
+    <div class="indent4"><span class="file key">MessageBubble.jsx</span> <span class="comment">— renders cipher block OR real text</span></div>
+    <div class="indent4"><span class="file key">CipherBlock.jsx</span> <span class="comment">— #1K2DR display logic</span></div>
+    <div class="indent4"><span class="file key">ChatListItem.jsx</span> <span class="comment">— Player #XXXX incognito display</span></div>
+    <div class="indent4"><span class="file">BottomTabBar.jsx</span> <span class="comment">— custom 5-tab HUD nav bar</span></div>
+    <div class="indent4"><span class="file">GlitchText.jsx</span> <span class="comment">— reusable glitch animation wrapper</span></div>
+    <div class="indent4"><span class="file">NeonButton.jsx</span> <span class="comment">— game-styled CTA button</span></div>
+    <div class="indent4"><span class="file">Avatar.jsx</span> <span class="comment">— pixel-art auto-gen or upload</span></div>
+
+    <div class="indent3"><span class="folder">📁 navigation/</span></div>
+    <div class="indent4"><span class="file key">AppNavigator.jsx</span> <span class="comment">— root navigator (auth vs main)</span></div>
+    <div class="indent4"><span class="file key">MainTabNavigator.jsx</span> <span class="comment">— 5-tab bottom nav</span></div>
+    <div class="indent4"><span class="file">AuthNavigator.jsx</span> <span class="comment">— onboarding stack</span></div>
+
+    <div class="indent3"><span class="folder">📁 store/</span> <span class="comment">— Zustand global state</span></div>
+    <div class="indent4"><span class="file key">useAuthStore.js</span> <span class="comment">— user session, tokens</span></div>
+    <div class="indent4"><span class="file key">useChatStore.js</span> <span class="comment">— chats, privacy mode state, session window</span></div>
+    <div class="indent4"><span class="file">useContactStore.js</span> <span class="comment">— contacts, incognito mappings</span></div>
+
+    <div class="indent3"><span class="folder">📁 hooks/</span></div>
+    <div class="indent4"><span class="file key">usePrivacySession.js</span> <span class="comment">— 2-min timer, inactivity detection, re-encrypt</span></div>
+    <div class="indent4"><span class="file key">useBiometrics.js</span> <span class="comment">— fingerprint/face ID wrapper</span></div>
+    <div class="indent4"><span class="file">useSocket.js</span> <span class="comment">— Socket.io connection lifecycle</span></div>
+
+    <div class="indent3"><span class="folder">📁 crypto/</span> <span class="comment">— E2EE layer</span></div>
+    <div class="indent4"><span class="file key">signalProtocol.js</span> <span class="comment">— libsignal X3DH + Double Ratchet setup</span></div>
+    <div class="indent4"><span class="file key">cipherBlock.js</span> <span class="comment">— hash → #1K2DR cipher display generator</span></div>
+    <div class="indent4"><span class="file">keyStore.js</span> <span class="comment">— MMKV-backed key persistence</span></div>
+
+    <div class="indent3"><span class="folder">📁 services/</span></div>
+    <div class="indent4"><span class="file key">api.js</span> <span class="comment">— axios instance, auth interceptors</span></div>
+    <div class="indent4"><span class="file key">socketService.js</span> <span class="comment">— Socket.io client singleton</span></div>
+    <div class="indent4"><span class="file">authService.js</span> <span class="comment">— Google OAuth + phone OTP calls</span></div>
+    <div class="indent4"><span class="file">chatService.js</span> <span class="comment">— send/receive message REST calls</span></div>
+
+    <div class="indent3"><span class="folder">📁 utils/</span></div>
+    <div class="indent4"><span class="file">incognito.js</span> <span class="comment">— contact ID → Player #XXXX mapping</span></div>
+    <div class="indent4"><span class="file">notifications.js</span> <span class="comment">— "New Incoming Signal" stealth push</span></div>
+    <div class="indent4"><span class="file">time.js</span> <span class="comment">— timestamp helpers</span></div>
+
+    <div class="indent3"><span class="folder">📁 theme/</span></div>
+    <div class="indent4"><span class="file key">colors.js</span> <span class="comment">— neon palette: #0D0D0D bg, #00FFB2 accent, etc.</span></div>
+    <div class="indent4"><span class="file">typography.js</span> <span class="comment">— font scales, Space Grotesk / JetBrains Mono</span></div>
+    <div class="indent4"><span class="file">animations.js</span> <span class="comment">— Reanimated shared values, glitch presets</span></div>
+
+    <div class="indent3"><span class="folder">📁 assets/</span></div>
+    <div class="indent4"><span class="folder">📁 fonts/</span> <span class="comment">— SpaceGrotesk, JetBrainsMono TTFs</span></div>
+    <div class="indent4"><span class="folder">📁 images/</span></div>
+    <div class="indent4"><span class="folder">📁 lottie/</span> <span class="comment">— splash glitch, loading animations</span></div>
+
+    <div class="indent2"><span class="file config">app.json</span> <span class="comment">— Expo config (name, slug, permissions)</span></div>
+    <div class="indent2"><span class="file config">babel.config.js</span></div>
+    <div class="indent2"><span class="file config">metro.config.js</span></div>
+    <div class="indent2"><span class="file env">.env</span> <span class="comment">— EXPO_PUBLIC_API_URL, GOOGLE_CLIENT_ID</span></div>
+    <div class="indent2"><span class="file">package.json</span></div>
+
+    <hr class="divider">
+
+    <div class="indent1"><span class="folder">📁 backend/</span> <span class="comment">— Node.js + Express API</span></div>
+    <div class="indent2"><span class="folder">📁 src/</span></div>
+
+    <div class="indent3"><span class="folder">📁 routes/</span></div>
+    <div class="indent4"><span class="file key">auth.routes.js</span> <span class="comment">— /auth/google, /auth/otp/send, /auth/otp/verify</span></div>
+    <div class="indent4"><span class="file key">chat.routes.js</span> <span class="comment">— /chats, /chats/:id/messages</span></div>
+    <div class="indent4"><span class="file">user.routes.js</span> <span class="comment">— /users/me, /users/search</span></div>
+
+    <div class="indent3"><span class="folder">📁 controllers/</span></div>
+    <div class="indent4"><span class="file">auth.controller.js</span></div>
+    <div class="indent4"><span class="file">chat.controller.js</span></div>
+    <div class="indent4"><span class="file">user.controller.js</span></div>
+
+    <div class="indent3"><span class="folder">📁 middleware/</span></div>
+    <div class="indent4"><span class="file key">auth.middleware.js</span> <span class="comment">— JWT verify</span></div>
+    <div class="indent4"><span class="file">error.middleware.js</span></div>
+
+    <div class="indent3"><span class="folder">📁 socket/</span></div>
+    <div class="indent4"><span class="file key">socketHandlers.js</span> <span class="comment">— message:send, typing, presence events</span></div>
+    <div class="indent4"><span class="file">socketAuth.js</span> <span class="comment">— JWT handshake for WS connections</span></div>
+
+    <div class="indent3"><span class="folder">📁 models/</span> <span class="comment">— Prisma schema / raw SQL models</span></div>
+    <div class="indent4"><span class="file key">user.model.js</span></div>
+    <div class="indent4"><span class="file key">chat.model.js</span></div>
+    <div class="indent4"><span class="file key">message.model.js</span> <span class="comment">— stores ciphertext ONLY</span></div>
+
+    <div class="indent3"><span class="folder">📁 services/</span></div>
+    <div class="indent4"><span class="file">firebase.service.js</span> <span class="comment">— OTP via Firebase Admin SDK</span></div>
+    <div class="indent4"><span class="file">push.service.js</span> <span class="comment">— FCM "New Incoming Signal" notifications</span></div>
+
+    <div class="indent3"><span class="folder">📁 config/</span></div>
+    <div class="indent4"><span class="file config">db.js</span> <span class="comment">— PostgreSQL pool (pg)</span></div>
+    <div class="indent4"><span class="file config">redis.js</span> <span class="comment">— ioredis client</span></div>
+    <div class="indent4"><span class="file config">firebase.js</span> <span class="comment">— Firebase Admin init</span></div>
+
+    <div class="indent3"><span class="file key">app.js</span> <span class="comment">— Express app, middleware chain</span></div>
+    <div class="indent3"><span class="file key">server.js</span> <span class="comment">— HTTP + Socket.io server entry point</span></div>
+
+    <div class="indent2"><span class="file env">.env</span> <span class="comment">— DB_URL, REDIS_URL, JWT_SECRET, FIREBASE_CREDS</span></div>
+    <div class="indent2"><span class="file config">package.json</span></div>
+
+    <hr class="divider">
+
+    <div class="indent1"><span class="file config">package.json</span> <span class="comment">— root (workspaces)</span></div>
+    <div class="indent1"><span class="file env">.gitignore</span></div>
+    <div class="indent1"><span class="file">README.md</span></div>
+  </div>
+</div>

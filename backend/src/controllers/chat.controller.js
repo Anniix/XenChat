@@ -2,11 +2,11 @@ const Chat = require('../models/chat.model');
 
 const createChat = async (req, res) => {
   try {
-    const { user2_id } = req.body;
+    const user2_id = req.body.user2_id || req.body.recipient_id;
     const user1_id = req.user.id;
 
     if (!user2_id) {
-      return res.status(400).json({ success: false, message: 'user2_id required' });
+      return res.status(400).json({ success: false, message: 'user2_id or recipient_id required' });
     }
 
     if (user1_id === user2_id) {

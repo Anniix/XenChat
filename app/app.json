@@ -4,6 +4,11 @@
     "slug": "xenchat",
     "version": "1.0.0",
     "orientation": "portrait",
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0A0A1A",
+      "translucent": false
+    },
     "android": {
       "package": "com.xenchat.app",
       "permissions": [
@@ -22,7 +27,10 @@
     },
     "plugins": [
       "expo-local-authentication",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser",
+      "expo-router",
+      "expo-splash-screen"
     ]
   }
 }

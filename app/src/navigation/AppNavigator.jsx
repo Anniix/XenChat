@@ -5,9 +5,7 @@ import useAuthStore from '../store/useAuthStore';
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
-// AuthNavigator ke baad, MainTabNavigator ke saath
-// AppNavigator mein ek Stack banana hoga
-
+import { connectSocket, disconnectSocket } from '../services/socketService';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,12 +23,21 @@ function MainStack() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, loadFromStorage } = useAuthStore();
+  const { isAuthenticated, loadFromStorage, token } = useAuthStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadFromStorage().finally(() => setLoading(false));
   }, []);
+
+  // Connect socket when authenticated, disconnect on logout
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      connectSocket(token);
+    } else {
+      disconnectSocket();
+    }
+  }, [isAuthenticated, token]);
 
   if (loading) return null;
 

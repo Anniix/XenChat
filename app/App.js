@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text } from 'react-native';
 import { useFonts, Orbitron_700Bold, Orbitron_400Regular } from '@expo-google-fonts/orbitron';
 import { Rajdhani_600SemiBold, Rajdhani_400Regular } from '@expo-google-fonts/rajdhani';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
@@ -23,9 +24,9 @@ export default function App() {
   }
 
   return (
-    <>
-      <StatusBar style="light" />
+    <SafeAreaProvider>
+      <StatusBar style="light" backgroundColor="#0A0A1A" translucent={false} />
       <AppNavigator />
-    </>
+    </SafeAreaProvider>
   );
 }
